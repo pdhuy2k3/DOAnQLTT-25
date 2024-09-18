@@ -1,0 +1,155 @@
+
+services:
+  namenode:
+    image: apache/hadoop:3.3.5
+    hostname: namenode
+    # volumes:
+    #   - ./Makefile:/opt/hadoop/Makefile
+    ports:
+      - 9870:9870
+    env_file:
+      - ./config
+    environment:
+      ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+    volumes:
+      # - ./namenode_data:/hadoop/dfs/namenode  # Persistent volume for namenode
+      # - ./doanqltt/src/main/resources/db:/json_files  
+      - ./hdfs-namenode-data:/tmp/hadoop-hadoop/dfs/name
+    #   - ./init-hdfs-permissions.sh:/docker-entrypoint-init.d/init-hdfs-permissions.sh
+    # entrypoint: ["/docker-entrypoint-init.d/init-hdfs-permissions.sh"]
+    networks:
+      - QLTT
+      
+    command: ["hdfs", "namenode"]
+  datanode_1:
+    image: apache/hadoop:3.3.5
+    container_name: datanode-1
+    command: [ "hdfs", "datanode" ]
+    env_file:
+      - ./config
+    environment:
+      - HDFS_DATA_DIR=/tmp/hadoop-root/dfs/data
+    volumes:
+      - ./hdfs-datanode-data:/tmp/hadoop-root/dfs/data
+    networks:
+      - QLTT
+  # datanode_2:
+  #   image: apache/hadoop:3
+  #   command: [ "hdfs", "datanode" ]
+  #   env_file:
+  #     - ./config
+  resourcemanager:
+    image: apache/hadoop:3.3.5
+    container_name: resourcemanager
+    hostname: resourcemanager
+    command: [ "yarn", "resourcemanager" ]
+    ports:
+      - 8088:8088
+    env_file:
+      - ./config
+    # volumes:
+    #   - ./test.sh:/opt/test.sh
+    networks:
+      - QLTT
+  nodemanager:
+    image: apache/hadoop:3.3.5
+    container_name: nodemanager
+    command: [ "yarn", "nodemanager" ]
+    env_file:
+      - ./config
+    networks:
+      - QLTT
+  # spark:
+  #   image: docker.io/bitnami/spark:3.5
+  #   hostname: spark
+  #   container_name: spark
+  #   environment:
+  #     - SPARK_MODE=master
+  #     - SPARK_RPC_AUTHENTICATION_ENABLED=no
+  #     - SPARK_RPC_ENCRYPTION_ENABLED=no
+  #     - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+  #     - SPARK_SSL_ENABLED=no
+  #     - SPARK_USER=spark
+  #   ports:
+  #     - '8080:8080'
+  #   networks:
+  #     - QLTT
+  # spark-worker:
+  #   image: docker.io/bitnami/spark:3.5
+  #   container_name: spark-worker
+  #   environment:
+  #     - SPARK_MODE=worker
+  #     - SPARK_MASTER_URL=spark://spark:7077
+  #     - SPARK_WORKER_MEMORY=1G
+  #     - SPARK_WORKER_CORES=1
+  #     - SPARK_RPC_AUTHENTICATION_ENABLED=no
+  #     - SPARK_RPC_ENCRYPTION_ENABLED=no
+  #     - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+  #     - SPARK_SSL_ENABLED=no
+  #     - SPARK_USER=spark
+  #   networks:
+  #     - QLTT
+  postgres:
+    image: postgres
+    restart: unless-stopped
+    container_name: postgres
+    hostname: postgres
+    environment:
+      POSTGRES_DB: 'metastore_db'
+      POSTGRES_USER: 'hive'
+      POSTGRES_PASSWORD: 'password'
+    ports:
+      - '5432:5432'
+    volumes:
+      # - ./hive-db:/var/lib/postgresql/data
+      - ./init-schema.sql:/docker-entrypoint-initdb.d/init-schema.sql 
+    networks:
+      - QLTT
+
+  # metastore:
+  #   image: apache/hive:4.0.0
+  #   depends_on:
+  #     - postgres
+  #   restart: unless-stopped
+  #   container_name: metastore
+  #   hostname: metastore
+  #   environment:
+  #     DB_DRIVER: postgres
+  #     SERVICE_NAME: 'metastore'
+  #     SERVICE_OPTS: '-Xmx1G -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+  #                    -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/metastore_db
+  #                    -Djavax.jdo.option.ConnectionUserName=hive
+  #                    -Djavax.jdo.option.ConnectionPassword=password'
+  #   ports:
+  #       - '9083:9083'
+  #   volumes:
+  #       - ./warehouse:/opt/hive/data/warehouse
+  #       - type: bind
+  #         source: ./postgresql.jar
+  #         target: /opt/hive/lib/postgres.jar
+  #   networks:
+  #     - QLTT
+
+  # hiveserver2:
+  #   image: apache/hive:4.0.0
+  #   depends_on:
+  #     - metastore
+  #   restart: unless-stopped
+  #   container_name: hiveserver2
+  #   environment:
+  #     HIVE_SERVER2_THRIFT_PORT: 10000
+  #     SERVICE_OPTS: '-Xmx1G -Dhive.metastore.uris=thrift://metastore:9083'
+  #     IS_RESUME: 'true'
+  #     SERVICE_NAME: 'hiveserver2'
+  #   ports:
+  #     - '10000:10000'
+  #     - '10002:10002'
+  #   volumes:
+  #     - ./warehouse:/opt/hive/data/warehouse
+  #   networks:
+  #     - QLTT
+
+
+networks:
+  QLTT:
+    name: QLTT
