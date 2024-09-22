@@ -4,9 +4,11 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.types.*;
 
 import static org.apache.spark.sql.functions.lit;
 import static org.apache.spark.sql.functions.max;
+import static org.apache.spark.sql.functions.*;
 
 import java.io.IOException;
 import java.util.Scanner;
@@ -45,16 +47,16 @@ public class Ingestion {
 
         if (exists) {
             var df = spark.read().parquet(tblLocation);
-            var record_id = df.agg(max("no_or_code")).head();
-//            var record_id = df.agg(max("no_or_code")).head().getLong(0);
+            var record_id = df.agg(max("no_or_code")).head().getLong(0);
 
             // Read JSON and filter records based on record_id
-            jsonDF = spark.read().json("doanqltt/src/main/resources/db/data_part1.json")
+            jsonDF = spark.read().json("doanqltt/src/main/resources/db/")
                     .filter("no_or_code > " + record_id);
         } else {
             // Read the entire JSON file if the table doesn't exist
-            jsonDF = spark.read().json("doanqltt/src/main/resources/db/data_part1.json");
+            jsonDF = spark.read().json("doanqltt/src/main/resources/db/");
         }
+        jsonDF = jsonDF.withColumn("no_or_code", col("no_or_code").cast("long"));
 
         // Save to DataLake
         var outPutDF = jsonDF
