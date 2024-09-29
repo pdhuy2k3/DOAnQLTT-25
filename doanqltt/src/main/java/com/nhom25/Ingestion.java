@@ -4,25 +4,30 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.*;
-
-import static org.apache.spark.sql.functions.lit;
-import static org.apache.spark.sql.functions.max;
-import static org.apache.spark.sql.functions.*;
-
 import java.io.IOException;
-import java.util.Scanner;
+import java.util.Map;
+import static com.nhom25.Util.getCurrentDate;
+import static com.nhom25.Util.parseArgs;
+import static org.apache.spark.sql.functions.*;
+import static org.apache.spark.sql.functions.lit;
 
 public class Ingestion {
     public static void main(String[] args) throws IOException {
-        //Receive parameter from user input
-        Scanner scanner = new Scanner(System.in);
+        Map<String, String> argMap = parseArgs(args);
 
-        System.out.print("Enter your table name: ");
-        String tblName = scanner.nextLine();
+        String tblName = argMap.get("-tblName");
+        String executionDate = argMap.get("-execDate");
+        if (tblName == null) {
+            System.out.println("Missing required argument: -tblName");
+            System.exit(1);
+            return;
+        }
+        if (executionDate == null) {
+            executionDate = getCurrentDate();
+        }
 
-        System.out.print("Enter your execution date: ");
-        String executionDate = scanner.nextLine();
+        System.out.println("tblName: " + tblName);
+        System.out.println("executionDate: " + executionDate);
 
         // Get information from user input
         var runTime = executionDate.split("-");
@@ -35,35 +40,49 @@ public class Ingestion {
                 .builder()
                 .appName("Ingestion - From MySQL to HIVE")
                 .master("local[*]")
+//                .config("hive.metastore.warehouse.dir","hdfs://localhost:9000/warehouse/")
                 .getOrCreate();
 
         // Get the latest record_id in DataLake
         var conf = spark.sparkContext().hadoopConfiguration();
-        var fs = org.apache.hadoop.fs.FileSystem.get(conf);
+        var fs = org.apache.hadoop.fs.FileSystem.newInstance(conf); // Sử dụng newInstance để tránh cache
         String path = String.format("/datalake/%s", tblName);
-        var exists = fs.exists(new org.apache.hadoop.fs.Path(path));
-        var tblLocation = String.format("hdfs://localhost:9000/datalake/%s", tblName);
+        var hdfsPath = new org.apache.hadoop.fs.Path(path);
+        boolean exists = fs.exists(hdfsPath);  // Kiểm tra sự tồn tại
+
+// Xác định đường dẫn trên HDFS
+        var tblLocation = String.format("hdfs://192.168.1.188:9000/datalake/%s", tblName);
         Dataset<Row> jsonDF;
 
         if (exists) {
+            System.out.println("Exists");
             var df = spark.read().parquet(tblLocation);
             var record_id = df.agg(max("no_or_code")).head().getLong(0);
 
-            // Read JSON and filter records based on record_id
+            // Đọc JSON và lọc các bản ghi dựa trên record_id
             jsonDF = spark.read().json("doanqltt/src/main/resources/db/")
                     .filter("no_or_code > " + record_id);
         } else {
-            // Read the entire JSON file if the table doesn't exist
+            System.out.println("Not Exists");
+            // Đọc toàn bộ file JSON nếu bảng chưa tồn tại
             jsonDF = spark.read().json("doanqltt/src/main/resources/db/");
         }
-        jsonDF = jsonDF.withColumn("no_or_code", col("no_or_code").cast("long"));
+        jsonDF = jsonDF
+                .withColumn("name", col("name").cast("string"))
+                .withColumn("no_or_code", col("no_or_code").cast("long"))
+                .withColumn("transaction_date", col("date"));
 
         // Save to DataLake
         var outPutDF = jsonDF
-                                    .withColumn("year", lit(year))
-                                    .withColumn("month", lit(month))
-                                    .withColumn("day", lit(day));
+
+                .withColumn("year", lit(year))
+                .withColumn("month", lit(month))
+                .withColumn("day", lit(day));
+
 
         outPutDF.write().partitionBy("year", "month", "day").mode(SaveMode.Append).parquet(tblLocation);
+        spark.stop();
+
     }
+
 }

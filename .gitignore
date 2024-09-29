@@ -1,3 +1,7 @@
 hdfs-datanode-data
 hdfs-namenode-data
 hive-db
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/

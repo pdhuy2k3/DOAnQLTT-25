@@ -6,7 +6,7 @@
 
     <groupId>com.nhom25</groupId>
     <artifactId>doanqltt</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -15,8 +15,8 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <apache-spark.version>3.3.1</apache-spark.version>
-        <hadoop.version>3.3.4</hadoop.version>
-        <apache-hive.version>4.0.0</apache-hive.version>
+        <hadoop.version>3.3.5</hadoop.version>
+        <apache-hive.version>3.1.2</apache-hive.version>
         <junit-platform.version>5.9.2</junit-platform.version>
         <mockito.version>4.11.0</mockito.version>
         <jmh.version>1.36</jmh.version>
@@ -36,18 +36,36 @@
             <artifactId>spark-sql_2.13</artifactId>
             <version>${apache-spark.version}</version>
         </dependency>
-
+        <!-- Spark SQL -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-hive_2.13</artifactId>
+            <version>${apache-spark.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>2.0.16</version>
+            <type>pom</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.15.2</version>
+        </dependency>
         <!-- Hive -->
-        <dependency>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-exec</artifactId>
-            <version>${apache-hive.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.hive</groupId>-->
+<!--            <artifactId>hive-exec</artifactId>-->
+<!--            <version>${apache-hive.version}</version>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-metastore</artifactId>
-            <version>${apache-hive.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.hive</groupId>-->
+<!--            <artifactId>hive-metastore</artifactId>-->
+<!--            <version>${apache-hive.version}</version>-->
+<!--        </dependency>-->
     </dependencies>
 </project>
