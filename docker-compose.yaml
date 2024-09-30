@@ -11,8 +11,8 @@ services:
       POSTGRES_PASSWORD: 'password'
     ports:
       - '5432:5432'
-    volumes:
-      - hive-db:/var/lib/postgresql
+#    volumes:
+#      - hive-db:/var/lib/postgresql
     networks:
       - hive
 
@@ -62,44 +62,6 @@ services:
       - ./hive-site.xml:/opt/hive/conf/hive-site.xml
     networks:
       - hive
-#  namenode:
-#      image: apache/hadoop:3.3.5
-#      hostname: namenode
-#      container_name: namenode
-#      command: ["hdfs", "namenode"]
-#      ports:
-#        - 9870:9870
-#        - 9000:9000
-#      env_file:
-#        - ./config
-#      environment:
-#          ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
-#      networks:
-#        - hive
-#  datanode:
-#      image: apache/hadoop:3.3.5
-#      command: ["hdfs", "datanode"]
-#      env_file:
-#        - ./config
-#      networks:
-#        - hive
-#  resourcemanager:
-#      image: apache/hadoop:3.3.5
-#      hostname: resourcemanager
-#      command: ["yarn", "resourcemanager"]
-#      ports:
-#         - 8088:8088
-#      env_file:
-#        - ./config
-#      networks:
-#        - hive
-#  nodemanager:
-#      image: apache/hadoop:3.3.5
-#      command: ["yarn", "nodemanager"]
-#      env_file:
-#        - ./config
-#      networks:
-#        - hive
 volumes:
   hive-db:
   warehouse:

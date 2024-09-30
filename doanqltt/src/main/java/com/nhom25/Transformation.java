@@ -14,10 +14,8 @@ import static org.apache.spark.sql.functions.*;
 import static org.apache.spark.sql.functions.lit;
 
 public class Transformation {
-    static String executionDate;
-    static String year;
-    static String month;
-    static String day;
+    static String executionDate, year, month, day;
+
     public static void main(String[] args) throws IOException {
         Map<String, String> argMap = parseArgs(args);
         executionDate = argMap.get("-executionDate");
@@ -66,19 +64,18 @@ public class Transformation {
 
     // Function to save total amount by month
     private static void saveTotalAmountByMonth(SparkSession spark, Dataset<Row> df) {
-        Dataset<Row> combineDateDF = addPartitionColumns(df);
-        Dataset<Row> totalByMonthDF = combineDateDF.groupBy( "month")
-                .agg(sum("credit").alias("total_amount"))
-                .withColumn("day", lit(day))
-                .withColumn("year", lit(year))
-                ;
+        Dataset<Row> updatedDF = df
+                .withColumn("transaction_date", to_date(col("transaction_date"), "dd/MM/yyyy"))
+                .withColumn("transaction_day", date_format(col("transaction_date"), "d").cast("long"));
+        Dataset<Row> totalByMonthDF = updatedDF.groupBy( "transaction_day")
+                .agg(sum("credit").alias("total_amount"));
+        Dataset<Row> result = addPartitionColumns(totalByMonthDF);
 
-
-        totalByMonthDF.write()
+        result.write()
                 .format("hive")
                 .partitionBy("year", "month","day")
                 .mode(SaveMode.Append)
-                .saveAsTable("total_amount_by_month");
+                .saveAsTable("total_amount_by_day");
     }
 
     // Function to save total amount by bank
@@ -109,12 +106,26 @@ public class Transformation {
 
     // Function to save user transaction report
     private static void saveUserTransactionReport(SparkSession spark, Dataset<Row> df) {
-        Dataset<Row> userTransactionReportDF = df.groupBy("name")
+        // Replace null or empty values in the name column with "Vietcombank"
+        Dataset<Row> updatedDF = df.withColumn("name",
+                when(col("name").isNull().or(trim(col("name")).equalTo("")), "Vietcombank")
+                        .otherwise(col("name")));
+
+        // Group by name and aggregate the required metrics
+        Dataset<Row> userTransactionReportDF = updatedDF.groupBy("name")
                 .agg(count("no_or_code").alias("transaction_count"),
                         avg("credit").alias("average_credit"),
                         sum("credit").alias("total_credit"));
-        Dataset<Row> resultDF = addPartitionColumns(userTransactionReportDF);
 
+        // Order by total_credit descending and limit to top 10 users
+        Dataset<Row> topUsersDF = userTransactionReportDF
+                .orderBy(col("total_credit").desc())
+                .limit(10);
+
+        // Add partition columns
+        Dataset<Row> resultDF = addPartitionColumns(topUsersDF);
+
+        // Write the result to Hive table
         resultDF.write()
                 .format("hive")
                 .partitionBy("year", "month", "day")

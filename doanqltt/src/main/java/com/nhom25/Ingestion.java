@@ -4,7 +4,11 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.expressions.UserDefinedFunction;
+import org.apache.spark.sql.types.DataTypes;
+
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Map;
 import static com.nhom25.Util.getCurrentDate;
 import static com.nhom25.Util.parseArgs;
@@ -68,13 +72,25 @@ public class Ingestion {
             jsonDF = spark.read().json("doanqltt/src/main/resources/db/");
         }
         jsonDF = jsonDF
-                .withColumn("name", col("name").cast("string"))
+                .withColumn("name", trim(regexp_replace(col("name"), "\\u00e2\\u20ac\\u201c\\s*.*", "")))
                 .withColumn("no_or_code", col("no_or_code").cast("long"))
-                .withColumn("transaction_date", col("date"));
-
+                .withColumnRenamed("date", "transaction_date");
+        UserDefinedFunction convertDateFormat = udf((String date) -> {
+            try {
+                if (date.contains("T")) {
+                    // Handle "2024-09-12T21:10:16"
+                    return new SimpleDateFormat("dd/MM/yyyy").format(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(date));
+                } else {
+                    // Handle "08/09/2024"
+                    return date; // Already in the desired format
+                }
+            } catch (Exception e) {
+                return null; // Return null for any parsing error
+            }
+        }, DataTypes.StringType);
+        var result= jsonDF.withColumn("transaction_date", convertDateFormat.apply(col("transaction_date")));
         // Save to DataLake
-        var outPutDF = jsonDF
-
+        var outPutDF = result
                 .withColumn("year", lit(year))
                 .withColumn("month", lit(month))
                 .withColumn("day", lit(day));
